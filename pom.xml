@@ -3,7 +3,7 @@
 	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>com.ccp.jb</groupId>
-	<artifactId>jb_telegram_jobsnow_dependency_chooser</artifactId>
+	<artifactId>jb_instant-messenger-listener_telegram_dependency-chooser</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
 
 	<properties>

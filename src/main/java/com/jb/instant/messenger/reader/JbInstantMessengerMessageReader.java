@@ -1,4 +1,4 @@
-package com.jb.telegram.reader;
+package com.jb.instant.messenger.reader;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -24,7 +24,7 @@ import com.jn.utils.JnSystemProperties;
  * um {@link CcpHttpHandler} com os fluxos mapeados por status (403 bot bloqueado, 404 bot inexistente,
  * 401 bot inativo, 429 excesso de requisições e 200 sucesso).
  */
-public class JbTelegramMessageReader {
+public class JbInstantMessengerMessageReader {
 
 	public static enum JsonFieldNames implements CcpJsonFieldName{
 		ok, result, update_id, message, message_id, text, chat, id, from, username, date,
@@ -32,11 +32,11 @@ public class JbTelegramMessageReader {
 		botName, chatId, typedValue, updateId, userName, sentAt
 	}
 
-	public static final JbTelegramMessageReader INSTANCE = new JbTelegramMessageReader();
+	public static final JbInstantMessengerMessageReader INSTANCE = new JbInstantMessengerMessageReader();
 
 	private final AtomicLong offset = new AtomicLong(0L);
 
-	private JbTelegramMessageReader() {}
+	private JbInstantMessengerMessageReader() {}
 
 	/**
 	 * Devolve o token do bot de suporte lido das propriedades do sistema.
@@ -146,7 +146,7 @@ public class JbTelegramMessageReader {
 				.put(JsonFieldNames.botName, JnBotType.support.name())
 				.put(JsonFieldNames.chatId, chatId.longValue())
 				.put(JsonFieldNames.message_id, messageId.longValue())
-				.put(JsonFieldNames.sentAt, sentAt.longValue())
+				.put(JsonFieldNames.sentAt, sentAt.longValue()) 
 				.put(JsonFieldNames.updateId, updateId)
 				.put(JsonFieldNames.userName, userName)
 				.put(JsonFieldNames.typedValue, typedValue)

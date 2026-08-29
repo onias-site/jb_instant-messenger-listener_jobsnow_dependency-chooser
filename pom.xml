@@ -40,6 +40,26 @@
 			<artifactId>jn_business_jobsnow</artifactId>
 			<version>0.0.1-SNAPSHOT</version>
 		</dependency>
+		<dependency>
+			<groupId>com.ccp.jb</groupId>
+			<artifactId>jb_business_jobsnow</artifactId>
+			<version>0.0.1-SNAPSHOT</version>
+		</dependency>
+		<dependency>
+			<groupId>com.ccp</groupId>
+			<artifactId>ccp_mocking_jobsnow</artifactId>
+			<version>0.0.1-SNAPSHOT</version>
+		</dependency>
+		<dependency>
+			<groupId>com.ccp</groupId>
+			<artifactId>ccp_db-crud_elasticsearch</artifactId>
+			<version>0.0.1-SNAPSHOT</version>
+		</dependency>
+		<dependency>
+			<groupId>com.ccp</groupId>
+			<artifactId>ccp_db-utils_elasticsearch</artifactId>
+			<version>0.0.1-SNAPSHOT</version>
+		</dependency>
 	</dependencies>
 
 	<build>

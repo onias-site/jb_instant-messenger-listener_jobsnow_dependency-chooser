@@ -2,7 +2,11 @@ package com.jb.instant.messenger.reader;
 
 import java.util.List;
 
+import com.ccp.business.CcpBusiness;
 import com.ccp.decorators.CcpJsonRepresentation;
+import com.ccp.decorators.CcpTimeDecorator;
+import com.jb.business.bots.engine.JbBotEngine;
+import com.jb.business.bots.engine.JbBotEngine.JbBotType;
 import com.jn.business.messages.JnBusinessSendInstantMessage;
 import com.jn.business.messages.JnBusinessSendInstantMessage.JnBotType;
 import com.jn.business.messages.JnBusinessSendInstantMessage.JnInstantMessageType;
@@ -24,7 +28,7 @@ public class JbInstantMessengerReaderStarter {
 
 	private static final int TIMEOUT_PADRAO = 10;
 
-	private static final int LEITURAS_PADRAO = 1;
+	private static final int LEITURAS_PADRAO = 0;
 
 	private static final JnBotType BOT_PADRAO = JnBotType.support;
 
@@ -33,10 +37,11 @@ public class JbInstantMessengerReaderStarter {
 		JbInstantMessengerDependencyChooser.chooseDependencies();
 
 		Integer timeout = getArgument(args, 0, TIMEOUT_PADRAO);
-		Integer leituras = getArgument(args, 0, LEITURAS_PADRAO);
+		Integer leituras = getArgument(args, 1, LEITURAS_PADRAO);
 		JnBotType botType = getBotType(args, 2, BOT_PADRAO);
 
 		boolean lerIndefinidamente = 0 == leituras;
+		CcpTimeDecorator ctd = new CcpTimeDecorator();
 
 		for (int volta = 1; lerIndefinidamente || volta <= leituras; volta++) {
 
@@ -49,8 +54,11 @@ public class JbInstantMessengerReaderStarter {
 						.put(JnBusinessSendInstantMessage.JnJsonValidator.instantMessageType, JnInstantMessageType.text)
 						.renameField(JbInstantMessengerMessageReader.JsonFieldNames.message_id, JnBusinessSendInstantMessage.Fields.replyTo)
 						;
-				JnBusinessSendInstantMessage.INSTANCE.execute(put); 
+				JbBotType valueOf = JbBotEngine.JbBotType.valueOf(botType.name());
+				CcpBusiness bot = valueOf.getBot();
+				bot.execute(put);
 			}
+			ctd.sleep(1);
 		}
 	}
 

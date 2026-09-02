@@ -4,9 +4,11 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
 
+import com.ccp.business.CcpBusiness;
 import com.ccp.constants.CcpOtherConstants;
 import com.ccp.decorators.CcpJsonRepresentation;
 import com.ccp.decorators.CcpJsonRepresentation.CcpJsonFieldName;
+import com.ccp.especifications.db.utils.entity.decorators.engine.CcpEntityMetaData;
 import com.ccp.especifications.http.CcpHttpHandler;
 import com.ccp.especifications.http.CcpHttpMethods;
 import com.ccp.especifications.http.CcpHttpResponseType;
@@ -15,7 +17,6 @@ import com.ccp.especifications.instant.messenger.CcpErrorInstantMessageThisBotWa
 import com.ccp.process.CcpFunctionThrowException;
 import com.jb.entities.JbEntityBotUpdateId;
 import com.jn.business.messages.JnBusinessSendInstantMessage;
-import com.jn.business.messages.JnBusinessSendInstantMessage.JnBotType;
 import com.jn.utils.JnSystemProperties;
 
 /**
@@ -52,19 +53,15 @@ public class JbInstantMessengerMessageReader {
 	 * @param botType bot cujo offset será recuperado
 	 * @return offset salvo para o bot informado, ou zero caso ainda não exista registro
 	 */
-	public Long getOffset(JnBotType botType) {
+	public Long getOffset(String botType) {
 
 		CcpJsonRepresentation parametersToSearch = this.getParametersToSearchOffset(botType);
-
-		boolean thereIsNoSavedOffset = false == JbEntityBotUpdateId.ENTITY.exists(parametersToSearch);
-
-		if(thereIsNoSavedOffset) {
-			return FIRST_OFFSET;
-		}
-
-		CcpJsonRepresentation savedOffset = JbEntityBotUpdateId.ENTITY.getOneById(parametersToSearch);
-
-		Long offset = savedOffset.getAsLongNumber(JbEntityBotUpdateId.Fields.updateId);
+		
+		CcpEntityMetaData entityMetaData = JbEntityBotUpdateId.ENTITY.getEntityMetaData();
+		
+		CcpJsonRepresentation savedOffset = entityMetaData.getOneByIdOrHandleItIfThisIdWasNotFound(parametersToSearch, json -> CcpOtherConstants.EMPTY_JSON.put(JbEntityBotUpdateId.Fields.updateId, FIRST_OFFSET));
+		
+		Long offset = savedOffset.getAsLongNumber(JbEntityBotUpdateId.Fields.updateId) ;
 
 		return offset;
 	}
@@ -77,8 +74,15 @@ public class JbInstantMessengerMessageReader {
 	 * @param offset offset a ser salvo
 	 * @return o próprio offset salvo
 	 */
-	public Long saveOffset(JnBotType botType, Long offset) {
-
+	public Long saveOffset(String botType, long savedOffset, List<CcpJsonRepresentation> messages) {
+		
+		
+		messages.sort((a, b) -> (int)(b.getAsLongNumber(JbEntityBotUpdateId.Fields.updateId) - a.getAsLongNumber(JbEntityBotUpdateId.Fields.updateId)));
+		
+		Long lastOffset = messages.stream().map(a -> a.getAsLongNumber(JbEntityBotUpdateId.Fields.updateId) + 1).findFirst().orElseGet(() -> FIRST_OFFSET);
+		
+		long offset = Math.max(savedOffset, lastOffset);
+		
 		CcpJsonRepresentation offsetToSave = this.getParametersToSearchOffset(botType)
 				.put(JbEntityBotUpdateId.Fields.updateId, offset)
 				;
@@ -88,10 +92,10 @@ public class JbInstantMessengerMessageReader {
 		return offset;
 	}
 
-	private CcpJsonRepresentation getParametersToSearchOffset(JnBotType botType) {
+	private CcpJsonRepresentation getParametersToSearchOffset(String botType) {
 
 		CcpJsonRepresentation parametersToSearch = CcpOtherConstants.EMPTY_JSON
-				.put(JbEntityBotUpdateId.Fields.botName, botType.name())
+				.put(JbEntityBotUpdateId.Fields.botName, botType)
 				;
 
 		return parametersToSearch;
@@ -102,8 +106,8 @@ public class JbInstantMessengerMessageReader {
 	 * @param botType bot cujo token será lido
 	 * @return token do bot informado
 	 */
-	public String getBotToken(JnBotType botType) {
-		String botToken = JnSystemProperties.INSTANCE.getSystemInnerProperty(JnBusinessSendInstantMessage.Fields.bots, botType);
+	public String getBotToken(String botType) {
+		String botToken = JnSystemProperties.INSTANCE.getSystemInnerProperty(JnBusinessSendInstantMessage.Fields.bots, () -> botType);
 		return botToken;
 	}
 
@@ -114,9 +118,9 @@ public class JbInstantMessengerMessageReader {
 	 * @param timeout tempo em segundos do long polling (zero para consulta imediata)
 	 * @return json devolvido pela api do Telegram
 	 */
-	public CcpJsonRepresentation getUpdates(JnBotType botType, Long offset, Integer timeout) {
+	public CcpJsonRepresentation getUpdates(String botType, Long offset, Integer timeout) {
 
-		CcpHttpHandler httpHandler = this.getHttpHandler(botType, "/getUpdates");
+		CcpHttpHandler httpHandler = this.getHttpHandler(botType, "/getUpdates?offset=" + offset);
 
 		CcpJsonRepresentation body = CcpOtherConstants.EMPTY_JSON
 				.put(JsonFieldNames.offset, offset)
@@ -136,7 +140,7 @@ public class JbInstantMessengerMessageReader {
 	 * @param timeout tempo em segundos do long polling (zero para consulta imediata)
 	 * @return lista de mensagens simplificadas
 	 */
-	public List<CcpJsonRepresentation> readMessages(JnBotType botType, Long offset, Integer timeout) {
+	public List<CcpJsonRepresentation> readMessages(String botType, Long offset, Integer timeout) {
 		CcpJsonRepresentation updates = this.getUpdates(botType, offset, timeout);
 		List<CcpJsonRepresentation> messages = this.extractMessages(botType, updates, new AtomicLong(offset));
 		return messages;
@@ -150,8 +154,9 @@ public class JbInstantMessengerMessageReader {
 	 * @param timeout tempo em segundos do long polling (zero para consulta imediata)
 	 * @return lista de mensagens simplificadas
 	 */
-	public List<CcpJsonRepresentation> readNewMessages(JnBotType botType, Integer timeout) {
-
+	public void readNewMessages(Integer timeout, CcpBusiness messageReader) {
+		String botType = messageReader.name();
+		
 		Long offset = this.getOffset(botType);
 
 		CcpJsonRepresentation updates = this.getUpdates(botType, offset, timeout);
@@ -159,34 +164,16 @@ public class JbInstantMessengerMessageReader {
 		AtomicLong offsetToUpdate = new AtomicLong(offset);
 
 		List<CcpJsonRepresentation> messages = this.extractMessages(botType, updates, offsetToUpdate);
-
-		this.saveOffsetIfItWasIncremented(botType, offset, offsetToUpdate.get());
-
-		return messages;
-	}
-
-	private void saveOffsetIfItWasIncremented(JnBotType botType, Long offset, Long incrementedOffset) {
-
-		boolean offsetWasNotIncremented = offset.equals(incrementedOffset);
-
-		if(offsetWasNotIncremented) {
-			return;
+		
+		for (CcpJsonRepresentation message : messages) {
+			messageReader.execute(message);
 		}
 
-		this.saveOffset(botType, incrementedOffset);
+		offset = this.saveOffset(botType, offset, messages);
 	}
 
-	/**
-	 * Lê as mensagens do bot informado ainda não lidas, sem esperar por novas mensagens.
-	 * @param botType bot a ser lido
-	 * @return lista de mensagens simplificadas
-	 */
-	public List<CcpJsonRepresentation> readNewMessages(JnBotType botType) {
-		List<CcpJsonRepresentation> messages = this.readNewMessages(botType, 0);
-		return messages;
-	}
 
-	private List<CcpJsonRepresentation> extractMessages(JnBotType botType, CcpJsonRepresentation updates, AtomicLong offsetToUpdate) {
+	private List<CcpJsonRepresentation> extractMessages(String botType, CcpJsonRepresentation updates, AtomicLong offsetToUpdate) {
 
 		Boolean ok = updates.getOrDefault(JsonFieldNames.ok, () -> false);
 
@@ -220,7 +207,7 @@ public class JbInstantMessengerMessageReader {
 		return messages;
 	}
 
-	private CcpJsonRepresentation extractMessage(JnBotType botType, CcpJsonRepresentation update, Long updateId) {
+	private CcpJsonRepresentation extractMessage(String botType, CcpJsonRepresentation update, Long updateId) {
 
 		Double chatId = update.getValueFromPath(0d, JsonFieldNames.message, JsonFieldNames.chat, JsonFieldNames.id);
 		Double messageId = update.getValueFromPath(0d, JsonFieldNames.message, JsonFieldNames.message_id);
@@ -229,7 +216,7 @@ public class JbInstantMessengerMessageReader {
 		String userName = update.getValueFromPath("", JsonFieldNames.message, JsonFieldNames.from, JsonFieldNames.username);
 
 		CcpJsonRepresentation message = CcpOtherConstants.EMPTY_JSON
-				.put(JsonFieldNames.botName, botType.name())
+				.put(JsonFieldNames.botName, botType)
 				.put(JsonFieldNames.chatId, chatId.longValue())
 				.put(JsonFieldNames.message_id, messageId.longValue())
 				.put(JsonFieldNames.sentAt, sentAt.longValue()) 
@@ -241,17 +228,16 @@ public class JbInstantMessengerMessageReader {
 		return message;
 	}
 
-	private CcpHttpHandler getHttpHandler(JnBotType botType, String resource) {
+	private CcpHttpHandler getHttpHandler(String botType, String resource) {
 
-		String botName = botType.name();
 		String botToken = this.getBotToken(botType);
 		String botUrl = JnSystemProperties.INSTANCE.urlInstantMessengerKey();
 		String url = botUrl + botToken + resource;
 
 		CcpJsonRepresentation handlers = CcpOtherConstants.EMPTY_JSON
-				.addJsonTransformer(403, new CcpFunctionThrowException(new CcpErrorInstantMessageThisBotWasBlockedByThisUser(botName)))
-				.addJsonTransformer(404, new CcpFunctionThrowException(new RuntimeException("The bot '" + botName + "' was not found")))
-				.addJsonTransformer(401, new CcpFunctionThrowException(new RuntimeException("The bot '" + botName + "' is inactive")))
+				.addJsonTransformer(403, new CcpFunctionThrowException(new CcpErrorInstantMessageThisBotWasBlockedByThisUser(botType)))
+				.addJsonTransformer(404, new CcpFunctionThrowException(new RuntimeException("The bot '" + botType + "' was not found")))
+				.addJsonTransformer(401, new CcpFunctionThrowException(new RuntimeException("The bot '" + botType + "' is inactive")))
 				.addJsonTransformer(429, new CcpFunctionThrowException(new CcpHttpTooManyRequests()))
 				.addJsonTransformer(200, CcpOtherConstants.DO_NOTHING)
 				;

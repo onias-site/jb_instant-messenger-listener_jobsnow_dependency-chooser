@@ -1,6 +1,7 @@
 package com.jb.instant.messenger.reader;
 
 import com.ccp.dependency.injection.CcpDependencyInjection;
+import com.ccp.implementations.db.bulk.elasticsearch.CcpElasticSerchDbBulk;
 import com.ccp.implementations.db.crud.elasticsearch.CcpElasticSearchCrud;
 import com.ccp.implementations.db.utils.elasticsearch.CcpElasticSearchDbRequest;
 import com.ccp.implementations.http.apache.mime.CcpApacheMimeHttp;
@@ -21,6 +22,7 @@ public class JbInstantMessengerDependencyChooser {
 	public static void chooseDependencies() {
 		CcpDependencyInjection.loadAllDependencies(
 				new CcpGsonJsonHandler(),
+				new CcpElasticSerchDbBulk(), 
 				new CcpApacheMimeHttp(),
 				CcpLocalCacheInstances.mock,
 				new CcpElasticSearchDbRequest(),

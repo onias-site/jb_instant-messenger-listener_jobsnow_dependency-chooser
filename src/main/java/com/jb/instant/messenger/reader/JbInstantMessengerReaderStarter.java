@@ -1,15 +1,10 @@
 package com.jb.instant.messenger.reader;
 
-import java.util.List;
-
 import com.ccp.business.CcpBusiness;
-import com.ccp.decorators.CcpJsonRepresentation;
 import com.ccp.decorators.CcpTimeDecorator;
 import com.jb.business.bots.engine.JbBotEngine;
 import com.jb.business.bots.engine.JbBotEngine.JbBotType;
-import com.jn.business.messages.JnBusinessSendInstantMessage;
 import com.jn.business.messages.JnBusinessSendInstantMessage.JnBotType;
-import com.jn.business.messages.JnBusinessSendInstantMessage.JnInstantMessageType;
 
 /**
  * Executa o {@code getUpdates} do Telegram contra o bot informado e imprime as mensagens recebidas.
@@ -43,21 +38,11 @@ public class JbInstantMessengerReaderStarter {
 		boolean lerIndefinidamente = 0 == leituras;
 		CcpTimeDecorator ctd = new CcpTimeDecorator();
 
+		JbBotType valueOf = JbBotEngine.JbBotType.valueOf(botType.name());
+		CcpBusiness bot = valueOf.getBot();
+
 		for (int volta = 1; lerIndefinidamente || volta <= leituras; volta++) {
-
-			List<CcpJsonRepresentation> mensagens = JbInstantMessengerMessageReader.INSTANCE.readNewMessages(botType, timeout);
-
-			for (CcpJsonRepresentation message : mensagens) {
-				CcpJsonRepresentation put = message
-						.put(JnBusinessSendInstantMessage.JnJsonValidator.botName, botType.name())
-						//TODO PARAMETRIZAR ESSE TEXT
-						.put(JnBusinessSendInstantMessage.JnJsonValidator.instantMessageType, JnInstantMessageType.text)
-						.renameField(JbInstantMessengerMessageReader.JsonFieldNames.message_id, JnBusinessSendInstantMessage.Fields.replyTo)
-						;
-				JbBotType valueOf = JbBotEngine.JbBotType.valueOf(botType.name());
-				CcpBusiness bot = valueOf.getBot();
-				bot.execute(put);
-			}
+			JbInstantMessengerMessageReader.INSTANCE.readNewMessages(timeout, bot);
 			ctd.sleep(1);
 		}
 	}

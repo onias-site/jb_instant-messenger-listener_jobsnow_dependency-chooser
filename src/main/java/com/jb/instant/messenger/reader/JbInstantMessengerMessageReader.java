@@ -7,7 +7,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import com.ccp.business.CcpBusiness;
 import com.ccp.constants.CcpOtherConstants;
 import com.ccp.decorators.CcpJsonRepresentation;
-import com.ccp.decorators.CcpJsonRepresentation.CcpJsonFieldName;
+import com.ccp.decorators.CcpJsonFieldName;
 import com.ccp.especifications.db.utils.entity.decorators.engine.CcpEntityMetaData;
 import com.ccp.especifications.http.CcpHttpHandler;
 import com.ccp.especifications.http.CcpHttpMethods;
@@ -18,6 +18,10 @@ import com.ccp.process.CcpFunctionThrowException;
 import com.jb.entities.JbEntityBotUpdateId;
 import com.jn.business.messages.JnBusinessSendInstantMessage;
 import com.jn.utils.JnSystemProperties;
+import java.util.stream.Stream;
+
+import com.jn.json.fields.validation.JnJsonInstantMessengerFields;
+import com.jn.json.fields.validation.JnJsonCommonsFields;
 
 /**
  * Lê as mensagens recebidas no Telegram através do recurso {@code getUpdates}. Todas as operações
@@ -35,7 +39,7 @@ import com.jn.utils.JnSystemProperties;
 public class JbInstantMessengerMessageReader {
 
 	public static enum JsonFieldNames implements CcpJsonFieldName{
-		ok, result, update_id, message, message_id, text, chat, id, from, username, date,
+		ok, result, update_id, message, message_id, text, chat, from, username,
 		offset, timeout,
 		botName, chatId, typedValue, updateId, userName, sentAt
 	}
@@ -78,12 +82,16 @@ public class JbInstantMessengerMessageReader {
 		
 		
 		messages.sort((a, b) -> (int)(b.getAsLongNumber(JbEntityBotUpdateId.Fields.updateId) - a.getAsLongNumber(JbEntityBotUpdateId.Fields.updateId)));
-		
-		Long lastOffset = messages.stream().map(a -> a.getAsLongNumber(JbEntityBotUpdateId.Fields.updateId) + 1).findFirst().orElseGet(() -> FIRST_OFFSET);
+		Stream<CcpJsonRepresentation> stream = messages.stream();
+		var streamMap = stream.map(a -> a.getAsLongNumber(JbEntityBotUpdateId.Fields.updateId) + 1);
+		var findFirst = streamMap.findFirst();
+
+		Long lastOffset = findFirst.orElseGet(() -> FIRST_OFFSET);
 		
 		long offset = Math.max(savedOffset, lastOffset);
-		
-		CcpJsonRepresentation offsetToSave = this.getParametersToSearchOffset(botType)
+		CcpJsonRepresentation parametersToSearchOffset = this.getParametersToSearchOffset(botType);
+
+		CcpJsonRepresentation offsetToSave = parametersToSearchOffset
 				.put(JbEntityBotUpdateId.Fields.updateId, offset)
 				;
 
@@ -95,7 +103,7 @@ public class JbInstantMessengerMessageReader {
 	private CcpJsonRepresentation getParametersToSearchOffset(String botType) {
 
 		CcpJsonRepresentation parametersToSearch = CcpOtherConstants.EMPTY_JSON
-				.put(JbEntityBotUpdateId.Fields.botName, botType)
+				.put(JnJsonInstantMessengerFields.botName, botType)
 				;
 
 		return parametersToSearch;
@@ -119,11 +127,13 @@ public class JbInstantMessengerMessageReader {
 	 * @return json devolvido pela api do Telegram
 	 */
 	public CcpJsonRepresentation getUpdates(String botType, Long offset, Integer timeout) {
+		String valorMais = "/getUpdates?offset=" + offset;
 
-		CcpHttpHandler httpHandler = this.getHttpHandler(botType, "/getUpdates?offset=" + offset);
+		CcpHttpHandler httpHandler = this.getHttpHandler(botType, valorMais);
+		CcpJsonRepresentation put = CcpOtherConstants.EMPTY_JSON
+				.put(JsonFieldNames.offset, offset);
 
-		CcpJsonRepresentation body = CcpOtherConstants.EMPTY_JSON
-				.put(JsonFieldNames.offset, offset)
+				CcpJsonRepresentation body = put
 				.put(JsonFieldNames.timeout, timeout)
 				;
 
@@ -142,7 +152,8 @@ public class JbInstantMessengerMessageReader {
 	 */
 	public List<CcpJsonRepresentation> readMessages(String botType, Long offset, Integer timeout) {
 		CcpJsonRepresentation updates = this.getUpdates(botType, offset, timeout);
-		List<CcpJsonRepresentation> messages = this.extractMessages(botType, updates, new AtomicLong(offset));
+		AtomicLong atomicLong = new AtomicLong(offset);
+		List<CcpJsonRepresentation> messages = this.extractMessages(botType, updates, atomicLong);
 		return messages;
 	}
 
@@ -180,7 +191,8 @@ public class JbInstantMessengerMessageReader {
 		boolean requestWasNotOk = false == ok;
 
 		if(requestWasNotOk) {
-			throw new JbErrorUnableToReadInstantMessages(updates);
+			JbErrorUnableToReadInstantMessages jbErrorUnableToReadInstantMessages = new JbErrorUnableToReadInstantMessages(updates);
+			throw jbErrorUnableToReadInstantMessages;
 		}
 
 		List<CcpJsonRepresentation> result = updates.getAsJsonList(JsonFieldNames.result);
@@ -190,10 +202,12 @@ public class JbInstantMessengerMessageReader {
 		for (CcpJsonRepresentation update : result) {
 
 			Long updateId = update.getAsLongNumber(JsonFieldNames.update_id);
+			Long updateIdMais = updateId + 1;
 
-			offsetToUpdate.set(updateId + 1);
+			offsetToUpdate.set(updateIdMais);
+			boolean containsAllFields = update.containsAllFields(JnJsonInstantMessengerFields.message);
 
-			boolean thereIsNoMessage = false == update.containsAllFields(JsonFieldNames.message);
+			boolean thereIsNoMessage = false == containsAllFields;
 
 			if(thereIsNoMessage) {
 				continue;
@@ -209,20 +223,29 @@ public class JbInstantMessengerMessageReader {
 
 	private CcpJsonRepresentation extractMessage(String botType, CcpJsonRepresentation update, Long updateId) {
 
-		Double chatId = update.getValueFromPath(0d, JsonFieldNames.message, JsonFieldNames.chat, JsonFieldNames.id);
-		Double messageId = update.getValueFromPath(0d, JsonFieldNames.message, JsonFieldNames.message_id);
-		Double sentAt = update.getValueFromPath(0d, JsonFieldNames.message, JsonFieldNames.date);
-		String typedValue = update.getValueFromPath("", JsonFieldNames.message, JsonFieldNames.text);
-		String userName = update.getValueFromPath("", JsonFieldNames.message, JsonFieldNames.from, JsonFieldNames.username);
+		Double chatId = update.getValueFromPath(0d, JnJsonInstantMessengerFields.message, JsonFieldNames.chat, JnJsonCommonsFields.id);
+		Double messageId = update.getValueFromPath(0d, JnJsonInstantMessengerFields.message, JsonFieldNames.message_id);
+		Double sentAt = update.getValueFromPath(0d, JnJsonInstantMessengerFields.message, JnJsonCommonsFields.date);
+		String typedValue = update.getValueFromPath("", JnJsonInstantMessengerFields.message, JsonFieldNames.text);
+		String userName = update.getValueFromPath("", JnJsonInstantMessengerFields.message, JsonFieldNames.from, JsonFieldNames.username);
+		CcpJsonRepresentation put2 = CcpOtherConstants.EMPTY_JSON
+				.put(JnJsonInstantMessengerFields.botName, botType);
+				long longValue = chatId.longValue();
+				CcpJsonRepresentation put3 = put2
+				.put(JnJsonInstantMessengerFields.chatId, longValue);
+				long longValue2 = messageId.longValue();
+				CcpJsonRepresentation put4 = put3
+				.put(JsonFieldNames.message_id, longValue2);
+				long longValue3 = sentAt.longValue();
+				CcpJsonRepresentation put5 = put4
+				.put(JsonFieldNames.sentAt, longValue3);
+				CcpJsonRepresentation put6 = put5 
+				.put(JsonFieldNames.updateId, updateId);
+				CcpJsonRepresentation put7 = put6
+				.put(JsonFieldNames.userName, userName);
 
-		CcpJsonRepresentation message = CcpOtherConstants.EMPTY_JSON
-				.put(JsonFieldNames.botName, botType)
-				.put(JsonFieldNames.chatId, chatId.longValue())
-				.put(JsonFieldNames.message_id, messageId.longValue())
-				.put(JsonFieldNames.sentAt, sentAt.longValue()) 
-				.put(JsonFieldNames.updateId, updateId)
-				.put(JsonFieldNames.userName, userName)
-				.put(JsonFieldNames.message, typedValue)
+				CcpJsonRepresentation message = put7
+				.put(JnJsonInstantMessengerFields.message, typedValue)
 				;
 
 		return message;
@@ -232,13 +255,26 @@ public class JbInstantMessengerMessageReader {
 
 		String botToken = this.getBotToken(botType);
 		String botUrl = JnSystemProperties.INSTANCE.urlInstantMessengerKey();
-		String url = botUrl + botToken + resource;
+		String botUrlMais = botUrl + botToken;
+		String url = botUrlMais + resource;
+		CcpErrorInstantMessageThisBotWasBlockedByThisUser ccpErrorInstantMessageThisBotWasBlockedByThisUser = new CcpErrorInstantMessageThisBotWasBlockedByThisUser(botType);
+		CcpFunctionThrowException ccpFunctionThrowException = new CcpFunctionThrowException(ccpErrorInstantMessageThisBotWasBlockedByThisUser);
+		CcpJsonRepresentation addJsonTransformer = CcpOtherConstants.EMPTY_JSON
+				.addJsonTransformer(403, ccpFunctionThrowException);
+				JbErrorInstantMessengerBotNotFound jbErrorInstantMessengerBotNotFound = new JbErrorInstantMessengerBotNotFound(botType);
+				CcpFunctionThrowException ccpFunctionThrowException2 = new CcpFunctionThrowException(jbErrorInstantMessengerBotNotFound);
+				CcpJsonRepresentation addJsonTransformer2 = addJsonTransformer
+				.addJsonTransformer(404, ccpFunctionThrowException2);
+				JbErrorInstantMessengerBotIsInactive jbErrorInstantMessengerBotIsInactive = new JbErrorInstantMessengerBotIsInactive(botType);
+				CcpFunctionThrowException ccpFunctionThrowException3 = new CcpFunctionThrowException(jbErrorInstantMessengerBotIsInactive);
+				CcpJsonRepresentation addJsonTransformer3 = addJsonTransformer2
+				.addJsonTransformer(401, ccpFunctionThrowException3);
+				CcpHttpTooManyRequests ccpHttpTooManyRequests = new CcpHttpTooManyRequests();
+				CcpFunctionThrowException ccpFunctionThrowException4 = new CcpFunctionThrowException(ccpHttpTooManyRequests);
+				CcpJsonRepresentation addJsonTransformer4 = addJsonTransformer3
+				.addJsonTransformer(429, ccpFunctionThrowException4);
 
-		CcpJsonRepresentation handlers = CcpOtherConstants.EMPTY_JSON
-				.addJsonTransformer(403, new CcpFunctionThrowException(new CcpErrorInstantMessageThisBotWasBlockedByThisUser(botType)))
-				.addJsonTransformer(404, new CcpFunctionThrowException(new RuntimeException("The bot '" + botType + "' was not found")))
-				.addJsonTransformer(401, new CcpFunctionThrowException(new RuntimeException("The bot '" + botType + "' is inactive")))
-				.addJsonTransformer(429, new CcpFunctionThrowException(new CcpHttpTooManyRequests()))
+				CcpJsonRepresentation handlers = addJsonTransformer4
 				.addJsonTransformer(200, CcpOtherConstants.DO_NOTHING)
 				;
 
@@ -247,10 +283,32 @@ public class JbInstantMessengerMessageReader {
 		return httpHandler;
 	}
 
+
+	/**
+	 * Exceção lançada quando o mensageiro responde 404 para o bot informado, ou seja, o bot não existe.
+	 */
 	@SuppressWarnings("serial")
-	public static class JbErrorUnableToReadInstantMessages extends RuntimeException {
-		private JbErrorUnableToReadInstantMessages(CcpJsonRepresentation json) {
-			super("It was not possible to read the instant messages. Details: " + json);
+	public static class JbErrorInstantMessengerBotNotFound extends RuntimeException {
+		/**
+		 * Monta a mensagem informando qual bot não foi encontrado.
+		 * @param botType o tipo do bot procurado
+		 */
+		private JbErrorInstantMessengerBotNotFound(String botType) {
+			super("The bot '" + botType + "' was not found");
+		}
+	}
+
+	/**
+	 * Exceção lançada quando o mensageiro responde 401 para o bot informado, ou seja, o bot existe mas está inativo.
+	 */
+	@SuppressWarnings("serial")
+	public static class JbErrorInstantMessengerBotIsInactive extends RuntimeException {
+		/**
+		 * Monta a mensagem informando qual bot está inativo.
+		 * @param botType o tipo do bot inativo
+		 */
+		private JbErrorInstantMessengerBotIsInactive(String botType) {
+			super("The bot '" + botType + "' is inactive");
 		}
 	}
 

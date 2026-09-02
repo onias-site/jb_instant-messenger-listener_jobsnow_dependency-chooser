@@ -2,8 +2,7 @@ package com.jb.instant.messenger.reader;
 
 import com.ccp.business.CcpBusiness;
 import com.ccp.decorators.CcpTimeDecorator;
-import com.jb.business.bots.engine.JbBotEngine;
-import com.jb.business.bots.engine.JbBotEngine.JbBotType;
+import com.jb.business.bots.engine.JbBotType;
 import com.jn.business.messages.JnBusinessSendInstantMessage.JnBotType;
 
 /**
@@ -37,13 +36,14 @@ public class JbInstantMessengerReaderStarter {
 
 		boolean lerIndefinidamente = 0 == leituras;
 		CcpTimeDecorator ctd = new CcpTimeDecorator();
+		String botTypeName = botType.name();
 
-		JbBotType valueOf = JbBotEngine.JbBotType.valueOf(botType.name());
+		JbBotType valueOf = JbBotType.valueOf(botTypeName);
 		CcpBusiness bot = valueOf.getBot();
 
 		for (int volta = 1; lerIndefinidamente || volta <= leituras; volta++) {
 			JbInstantMessengerMessageReader.INSTANCE.readNewMessages(timeout, bot);
-			ctd.sleep(1);
+			ctd.sleep(3000);
 		}
 	}
 
@@ -56,7 +56,8 @@ public class JbInstantMessengerReaderStarter {
 		}
 
 		try {
-			JnBotType botType = JnBotType.valueOf(args[posicao].trim());
+			String argsTrim = args[posicao].trim();
+			JnBotType botType = JnBotType.valueOf(argsTrim);
 			return botType;
 		} catch (IllegalArgumentException e) {
 			return valorPadrao;
@@ -72,7 +73,8 @@ public class JbInstantMessengerReaderStarter {
 		}
 
 		try {
-			Integer valor = Integer.valueOf(args[posicao].trim());
+			String argsTrim2 = args[posicao].trim();
+			Integer valor = Integer.valueOf(argsTrim2);
 			return valor;
 		} catch (NumberFormatException e) {
 			return valorPadrao;

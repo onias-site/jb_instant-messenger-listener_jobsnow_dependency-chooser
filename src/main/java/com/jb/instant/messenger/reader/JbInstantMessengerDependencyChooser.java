@@ -20,14 +20,20 @@ public class JbInstantMessengerDependencyChooser {
 	 * Registra no {@code CcpDependencyInjection} as implementações usadas pela leitura de mensagens.
 	 */
 	public static void chooseDependencies() {
+		CcpGsonJsonHandler ccpGsonJsonHandler = new CcpGsonJsonHandler();
+		CcpElasticSerchDbBulk ccpElasticSerchDbBulk = new CcpElasticSerchDbBulk();
+		CcpApacheMimeHttp ccpApacheMimeHttp = new CcpApacheMimeHttp();
+		CcpElasticSearchDbRequest ccpElasticSearchDbRequest = new CcpElasticSearchDbRequest();
+		CcpElasticSearchCrud ccpElasticSearchCrud = new CcpElasticSearchCrud();
+		CcpTelegramInstantMessenger ccpTelegramInstantMessenger = new CcpTelegramInstantMessenger();
 		CcpDependencyInjection.loadAllDependencies(
-				new CcpGsonJsonHandler(),
-				new CcpElasticSerchDbBulk(), 
-				new CcpApacheMimeHttp(),
+				ccpGsonJsonHandler,
+				ccpElasticSerchDbBulk, 
+				ccpApacheMimeHttp,
 				CcpLocalCacheInstances.mock,
-				new CcpElasticSearchDbRequest(),
-				new CcpElasticSearchCrud(),
-				new CcpTelegramInstantMessenger()
+				ccpElasticSearchDbRequest,
+				ccpElasticSearchCrud,
+				ccpTelegramInstantMessenger
 		);
 	}
 

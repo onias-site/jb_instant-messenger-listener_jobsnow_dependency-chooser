@@ -7,6 +7,8 @@ import com.ccp.implementations.db.utils.elasticsearch.CcpElasticSearchDbRequest;
 import com.ccp.implementations.http.apache.mime.CcpApacheMimeHttp;
 import com.ccp.implementations.instant.messenger.telegram.CcpTelegramInstantMessenger;
 import com.ccp.implementations.json.gson.CcpGsonJsonHandler;
+import com.ccp.implementations.password.mindrot.CcpMindrotPasswordHandler;
+import com.ccp.local.testings.implementations.CcpLocalInstances;
 import com.ccp.local.testings.implementations.cache.CcpLocalCacheInstances;
 
 /**
@@ -28,8 +30,11 @@ public class JbInstantMessengerDependencyChooser {
 		CcpTelegramInstantMessenger ccpTelegramInstantMessenger = new CcpTelegramInstantMessenger();
 		CcpDependencyInjection.loadAllDependencies(
 				ccpGsonJsonHandler,
+				CcpLocalInstances.email,
+				new CcpMindrotPasswordHandler(),
 				ccpElasticSerchDbBulk, 
 				ccpApacheMimeHttp,
+				CcpLocalInstances.mensageriaSender,
 				CcpLocalCacheInstances.mock,
 				ccpElasticSearchDbRequest,
 				ccpElasticSearchCrud,

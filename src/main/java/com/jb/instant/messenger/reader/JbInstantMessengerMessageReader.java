@@ -80,13 +80,17 @@ public class JbInstantMessengerMessageReader {
 	 */
 	public Long saveOffset(String botType, long savedOffset, List<CcpJsonRepresentation> messages) {
 		
+		boolean hasNoMessages = messages.isEmpty();
+		if(hasNoMessages) {
+			return  savedOffset;
+		}
 		
 		messages.sort((a, b) -> (int)(b.getAsLongNumber(JbEntityBotUpdateId.Fields.updateId) - a.getAsLongNumber(JbEntityBotUpdateId.Fields.updateId)));
 		Stream<CcpJsonRepresentation> stream = messages.stream();
 		var streamMap = stream.map(a -> a.getAsLongNumber(JbEntityBotUpdateId.Fields.updateId) + 1);
 		var findFirst = streamMap.findFirst();
 
-		Long lastOffset = findFirst.orElseGet(() -> FIRST_OFFSET);
+		Long lastOffset = findFirst.get();
 		
 		long offset = Math.max(savedOffset, lastOffset);
 		CcpJsonRepresentation parametersToSearchOffset = this.getParametersToSearchOffset(botType);
@@ -166,6 +170,7 @@ public class JbInstantMessengerMessageReader {
 	 * @return lista de mensagens simplificadas
 	 */
 	public void readNewMessages(Integer timeout, CcpBusiness messageReader) {
+		
 		String botType = messageReader.name();
 		
 		Long offset = this.getOffset(botType);

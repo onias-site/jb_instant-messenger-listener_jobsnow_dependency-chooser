@@ -34,7 +34,7 @@ public class JbInstantMessengerDependencyChooser {
 				new CcpMindrotPasswordHandler(),
 				ccpElasticSerchDbBulk, 
 				ccpApacheMimeHttp,
-				CcpLocalInstances.mensageriaSender,
+				CcpLocalInstances.syncMensageriaListener,
 				CcpLocalCacheInstances.mock,
 				ccpElasticSearchDbRequest,
 				ccpElasticSearchCrud,

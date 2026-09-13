@@ -3,11 +3,12 @@ package com.jb.instant.messenger.reader;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.stream.Stream;
 
 import com.ccp.business.CcpBusiness;
 import com.ccp.constants.CcpOtherConstants;
-import com.ccp.decorators.CcpJsonRepresentation;
 import com.ccp.decorators.CcpJsonFieldName;
+import com.ccp.decorators.CcpJsonRepresentation;
 import com.ccp.especifications.db.utils.entity.decorators.engine.CcpEntityMetaData;
 import com.ccp.especifications.http.CcpHttpHandler;
 import com.ccp.especifications.http.CcpHttpMethods;
@@ -16,12 +17,10 @@ import com.ccp.especifications.http.CcpHttpTooManyRequests;
 import com.ccp.especifications.instant.messenger.CcpErrorInstantMessageThisBotWasBlockedByThisUser;
 import com.ccp.process.CcpFunctionThrowException;
 import com.jb.entities.JbEntityBotUpdateId;
-import com.jn.business.messages.JnBusinessSendInstantMessage;
-import com.jn.utils.JnSystemProperties;
-import java.util.stream.Stream;
-
-import com.jn.json.fields.validation.JnJsonInstantMessengerFields;
+import com.jn.business.messages.JnMessageType;
 import com.jn.json.fields.validation.JnJsonCommonsFields;
+import com.jn.json.fields.validation.JnJsonInstantMessengerFields;
+import com.jn.utils.JnSystemProperties;
 
 /**
  * Lê as mensagens recebidas no Telegram através do recurso {@code getUpdates}. Todas as operações
@@ -119,7 +118,7 @@ public class JbInstantMessengerMessageReader {
 	 * @return token do bot informado
 	 */
 	public String getBotToken(String botType) {
-		String botToken = JnSystemProperties.INSTANCE.getSystemInnerProperty(JnBusinessSendInstantMessage.Fields.bots, () -> botType);
+		String botToken = JnSystemProperties.INSTANCE.getSystemInnerProperty(JnMessageType.InstantMessengerApiFields.bots, () -> botType);
 		return botToken;
 	}
 

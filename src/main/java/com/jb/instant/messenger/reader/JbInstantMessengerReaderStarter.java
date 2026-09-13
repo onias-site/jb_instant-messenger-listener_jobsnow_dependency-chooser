@@ -3,7 +3,8 @@ package com.jb.instant.messenger.reader;
 import com.ccp.business.CcpBusiness;
 import com.ccp.decorators.CcpTimeDecorator;
 import com.jb.business.bots.engine.JbBotType;
-import com.jn.business.messages.JnBusinessSendInstantMessage.JnBotType;
+import com.jn.business.messages.JnMessageType;
+import com.jn.business.messages.JnMessageType.JnBotType;
 
 /**
  * Executa o {@code getUpdates} do Telegram contra o bot informado e imprime as mensagens recebidas.
@@ -24,7 +25,7 @@ public class JbInstantMessengerReaderStarter {
 
 	private static final int LEITURAS_PADRAO = 0;
 
-	private static final JnBotType BOT_PADRAO = JnBotType.support;
+	private static final JnMessageType.JnBotType BOT_PADRAO = JnMessageType.JnBotType.support;
 
 	public static void main(String[] args) {
 

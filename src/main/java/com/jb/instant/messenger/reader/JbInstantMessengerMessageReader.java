@@ -22,6 +22,8 @@ import com.jn.json.fields.validation.JnJsonCommonsFields;
 import com.jn.json.fields.validation.JnJsonInstantMessengerFields;
 import com.jn.utils.JnSystemProperties;
 
+import com.ccp.json.fields.validation.CcpJsonCommonsFields;
+
 /**
  * Lê as mensagens recebidas no Telegram através do recurso {@code getUpdates}. Todas as operações
  * recebem o {@link JnBotType} do bot a ser lido, de forma que qualquer item do enum seja contemplado.
@@ -37,10 +39,9 @@ import com.jn.utils.JnSystemProperties;
  */
 public class JbInstantMessengerMessageReader {
 
-	public static enum JsonFieldNames implements CcpJsonFieldName{
-		ok, result, update_id, message, message_id, text, chat, from, username,
+	public static enum JsonFieldNames implements CcpJsonFieldName{ update_id, message, message_id, chat, from, username,
 		offset, timeout,
-		botName, chatId, typedValue, updateId, userName, sentAt
+		botName, chatId, updateId, userName, sentAt
 	}
 
 	public static final JbInstantMessengerMessageReader INSTANCE = new JbInstantMessengerMessageReader();
@@ -190,7 +191,7 @@ public class JbInstantMessengerMessageReader {
 
 	private List<CcpJsonRepresentation> extractMessages(String botType, CcpJsonRepresentation updates, AtomicLong offsetToUpdate) {
 
-		Boolean ok = updates.getOrDefault(JsonFieldNames.ok, () -> false);
+		Boolean ok = updates.getOrDefault(CcpJsonCommonsFields.ok, () -> false);
 
 		boolean requestWasNotOk = false == ok;
 
@@ -199,7 +200,7 @@ public class JbInstantMessengerMessageReader {
 			throw jbErrorUnableToReadInstantMessages;
 		}
 
-		List<CcpJsonRepresentation> result = updates.getAsJsonList(JsonFieldNames.result);
+		List<CcpJsonRepresentation> result = updates.getAsJsonList(CcpJsonCommonsFields.result);
 
 		List<CcpJsonRepresentation> messages = new ArrayList<>();
 
@@ -228,9 +229,9 @@ public class JbInstantMessengerMessageReader {
 	private CcpJsonRepresentation extractMessage(String botType, CcpJsonRepresentation update, Long updateId) {
 
 		Double chatId = update.getValueFromPath(0d, JnJsonInstantMessengerFields.message, JsonFieldNames.chat, JnJsonCommonsFields.id);
-		Double messageId = update.getValueFromPath(0d, JnJsonInstantMessengerFields.message, JsonFieldNames.message_id);
+		Double messageId = update.getValueFromPath(0d, JnJsonInstantMessengerFields.message, CcpJsonCommonsFields.message_id);
 		Double sentAt = update.getValueFromPath(0d, JnJsonInstantMessengerFields.message, JnJsonCommonsFields.date);
-		String typedValue = update.getValueFromPath("", JnJsonInstantMessengerFields.message, JsonFieldNames.text);
+		String typedValue = update.getValueFromPath("", JnJsonInstantMessengerFields.message, CcpJsonCommonsFields.text);
 		String userName = update.getValueFromPath("", JnJsonInstantMessengerFields.message, JsonFieldNames.from, JsonFieldNames.username);
 		CcpJsonRepresentation put2 = CcpOtherConstants.EMPTY_JSON
 				.put(JnJsonInstantMessengerFields.botName, botType);
@@ -239,7 +240,7 @@ public class JbInstantMessengerMessageReader {
 				.put(JnJsonInstantMessengerFields.chatId, longValue);
 				long longValue2 = messageId.longValue();
 				CcpJsonRepresentation put4 = put3
-				.put(JsonFieldNames.message_id, longValue2);
+				.put(CcpJsonCommonsFields.message_id, longValue2);
 				long longValue3 = sentAt.longValue();
 				CcpJsonRepresentation put5 = put4
 				.put(JsonFieldNames.sentAt, longValue3);

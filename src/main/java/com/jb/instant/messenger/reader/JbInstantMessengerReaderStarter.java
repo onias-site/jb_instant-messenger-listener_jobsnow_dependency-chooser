@@ -21,19 +21,19 @@ import com.jn.business.messages.JnMessageType.JnBotType;
  */
 public class JbInstantMessengerReaderStarter {
 
-	private static final int TIMEOUT_PADRAO = 10;
+	private static final int DEFAULT_TIMEOUT = 10;
 
-	private static final int LEITURAS_PADRAO = 0;
+	private static final int DEFAULT_READS = 0;
 
-	private static final JnMessageType.JnBotType BOT_PADRAO = JnMessageType.JnBotType.support;
+	private static final JnMessageType.JnBotType DEFAULT_BOT = JnMessageType.JnBotType.support;
 
 	public static void main(String[] args) {
 
 		JbInstantMessengerDependencyChooser.chooseDependencies();
 
-		Integer timeout = getArgument(args, 0, TIMEOUT_PADRAO);
-		Integer leituras = getArgument(args, 1, LEITURAS_PADRAO);
-		JnBotType botType = getBotType(args, 2, BOT_PADRAO);
+		Integer timeout = getArgument(args, 0, DEFAULT_TIMEOUT);
+		Integer leituras = getArgument(args, 1, DEFAULT_READS);
+		JnBotType botType = getBotType(args, 2, DEFAULT_BOT);
 
 		boolean lerIndefinidamente = 0 == leituras;
 		CcpTimeDecorator ctd = new CcpTimeDecorator();

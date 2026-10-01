@@ -3,6 +3,7 @@ package com.jb.instant.messenger.reader;
 import com.ccp.dependency.injection.CcpDependencyInjection;
 import com.ccp.implementations.db.bulk.elasticsearch.CcpElasticSerchDbBulk;
 import com.ccp.implementations.db.crud.elasticsearch.CcpElasticSearchCrud;
+import com.ccp.implementations.db.query.elasticsearch.CcpElasticSearchQueryExecutor;
 import com.ccp.implementations.db.utils.elasticsearch.CcpElasticSearchDbRequest;
 import com.ccp.implementations.http.apache.mime.CcpApacheMimeHttp;
 import com.ccp.implementations.instant.messenger.telegram.CcpTelegramInstantMessenger;
@@ -28,6 +29,8 @@ public class JbInstantMessengerDependencyChooser {
 		CcpElasticSearchDbRequest ccpElasticSearchDbRequest = new CcpElasticSearchDbRequest();
 		CcpElasticSearchCrud ccpElasticSearchCrud = new CcpElasticSearchCrud();
 		CcpTelegramInstantMessenger ccpTelegramInstantMessenger = new CcpTelegramInstantMessenger();
+		// the queries (e.g. the orphan items of a skill hierarchy fix request, the purge of a versionable record's history) need it
+		CcpElasticSearchQueryExecutor ccpElasticSearchQueryExecutor = new CcpElasticSearchQueryExecutor();
 		CcpDependencyInjection.loadAllDependencies(
 				ccpGsonJsonHandler,
 				CcpLocalInstances.email,
@@ -38,6 +41,7 @@ public class JbInstantMessengerDependencyChooser {
 				CcpLocalCacheInstances.mock,
 				ccpElasticSearchDbRequest,
 				ccpElasticSearchCrud,
+				ccpElasticSearchQueryExecutor,
 				ccpTelegramInstantMessenger
 		);
 	}

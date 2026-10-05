@@ -25,37 +25,60 @@ import com.jn.utils.JnSystemProperties;
 import com.ccp.json.fields.validation.CcpJsonCommonsFields;
 
 /**
- * Lê as mensagens recebidas no Telegram através do recurso {@code getUpdates}. Todas as operações
- * recebem o {@link JnBotType} do bot a ser lido, de forma que qualquer item do enum seja contemplado.
- * O token do bot e a url da api são obtidos via {@link JnSystemProperties}, e a comunicação http
- * segue o mesmo padrão do módulo {@code ccp_instant-messenger_telegram}: um {@link CcpHttpHandler}
- * com os fluxos mapeados por status (403 bot bloqueado, 404 bot inexistente, 401 bot inativo,
- * 429 excesso de requisições e 200 sucesso).
- *
- * <p>O offset, que é o identificador da primeira atualização a ser devolvida pelo {@code getUpdates},
- * é gravado na entidade {@link JbEntityBotUpdateId}, sempre incrementado em um a partir da última
- * atualização lida. Como o nome do bot é a chave primária dessa entidade, cada bot tem o seu próprio
- * offset, e as mensagens já lidas não voltam nem mesmo depois de reiniciar a aplicação.</p>
+ * Reads the messages received by a bot through the {@code getUpdates} resource of Telegram. The token of the bot and the
+ * URL of the API come from {@code JnSystemProperties}; the HTTP flows are mapped by status as in the
+ * {@code ccp_instant-messenger_telegram} module (403 bot blocked, 404 bot not found, 401 bot inactive, 429 too many
+ * requests and 200 success).
+ * <p>The offset, the id of the first update returned by {@code getUpdates}, is saved in {@code JbEntityBotUpdateId},
+ * always one more than the last update read. The bot name is the primary key of that entity, so each bot has its own
+ * offset, and the messages already read do not come back even after the application restarts (see finding: only updates
+ * that carry a message move the offset).</p>
  */
 public class JbInstantMessengerMessageReader {
 
-	public static enum JsonFieldNames implements CcpJsonFieldName{ update_id, message, message_id, chat, from, username,
-		offset, timeout,
-		botName, chatId, updateId, userName, sentAt
+	/** Fields of the Telegram updates and of the simplified messages. */
+	public static enum JsonFieldNames implements CcpJsonFieldName{
+		/** The id of the update. */
+		update_id,
+		/** The message of the update. */
+		message,
+		/** The id of the message. */
+		message_id,
+		/** The chat of the message. */
+		chat,
+		/** The sender of the message. */
+		from,
+		/** The user name of the sender. */
+		username,
+		/** The first update to return. */
+		offset,
+		/** The long polling time, in seconds. */
+		timeout,
+		/** The bot. */
+		botName,
+		/** The chat id. */
+		chatId,
+		/** The id of the update, in the simplified message. */
+		updateId,
+		/** The user name, in the simplified message. */
+		userName,
+		/** When the message was sent, in the simplified message. */
+		sentAt
 	}
 
+	/** The single instance. */
 	public static final JbInstantMessengerMessageReader INSTANCE = new JbInstantMessengerMessageReader();
 
+	/** The offset before any update was read: Telegram returns the oldest updates still available. */
 	private static final Long FIRST_OFFSET = 0L;
 
+	/** Singleton; use {@link #INSTANCE}. */
 	private JbInstantMessengerMessageReader() {}
 
 	/**
-	 * Recupera da entidade {@link JbEntityBotUpdateId} o offset salvo para o bot informado.
-	 * Enquanto nenhuma atualização tiver sido lida, devolve zero, valor com o qual a api do
-	 * Telegram devolve as atualizações mais antigas ainda disponíveis.
-	 * @param botType bot cujo offset será recuperado
-	 * @return offset salvo para o bot informado, ou zero caso ainda não exista registro
+	 * Returns the offset saved for the bot, or zero while no update was read.
+	 * @param botType the bot
+	 * @return the offset
 	 */
 	public Long getOffset(String botType) {
 
@@ -71,12 +94,11 @@ public class JbInstantMessengerMessageReader {
 	}
 
 	/**
-	 * Salva na entidade {@link JbEntityBotUpdateId} o offset do bot informado, ou seja, o número
-	 * da última atualização lida já incrementado, de forma que a próxima leitura comece na
-	 * atualização seguinte.
-	 * @param botType bot cujo offset será salvo
-	 * @param offset offset a ser salvo
-	 * @return o próprio offset salvo
+	 * Saves the offset of the bot: one more than the highest update id among the messages, never less than the saved one.
+	 * @param botType the bot
+	 * @param savedOffset the offset saved before the reading
+	 * @param messages the messages read
+	 * @return the offset saved, or the previous one when there was no message
 	 */
 	public Long saveOffset(String botType, long savedOffset, List<CcpJsonRepresentation> messages) {
 		
@@ -104,6 +126,11 @@ public class JbInstantMessengerMessageReader {
 		return offset;
 	}
 
+	/**
+	 * Returns the key of the offset of the bot.
+	 * @param botType the bot
+	 * @return the key
+	 */
 	private CcpJsonRepresentation getParametersToSearchOffset(String botType) {
 
 		CcpJsonRepresentation parametersToSearch = CcpOtherConstants.EMPTY_JSON
@@ -114,9 +141,9 @@ public class JbInstantMessengerMessageReader {
 	}
 
 	/**
-	 * Devolve o token do bot informado lido das propriedades do sistema.
-	 * @param botType bot cujo token será lido
-	 * @return token do bot informado
+	 * Returns the token of the bot from the system properties.
+	 * @param botType the bot
+	 * @return the token
 	 */
 	public String getBotToken(String botType) {
 		String botToken = JnSystemProperties.INSTANCE.getSystemInnerProperty(JnMessageType.InstantMessengerApiFields.bots, () -> botType);
@@ -124,16 +151,16 @@ public class JbInstantMessengerMessageReader {
 	}
 
 	/**
-	 * Executa o {@code getUpdates} da api do Telegram e devolve a resposta crua.
-	 * @param botType bot a ser lido
-	 * @param offset identificador da primeira atualização a ser devolvida
-	 * @param timeout tempo em segundos do long polling (zero para consulta imediata)
-	 * @return json devolvido pela api do Telegram
+	 * Calls {@code getUpdates} and returns the raw answer.
+	 * @param botType the bot
+	 * @param offset the first update to return
+	 * @param timeout the long polling time, in seconds (zero for an immediate answer)
+	 * @return the answer of Telegram
 	 */
 	public CcpJsonRepresentation getUpdates(String botType, Long offset, Integer timeout) {
-		String valorMais = "/getUpdates?offset=" + offset;
+		String updatesResource = "/getUpdates?offset=" + offset;
 
-		CcpHttpHandler httpHandler = this.getHttpHandler(botType, valorMais);
+		CcpHttpHandler httpHandler = this.getHttpHandler(botType, updatesResource);
 		CcpJsonRepresentation put = CcpOtherConstants.EMPTY_JSON
 				.put(JsonFieldNames.offset, offset);
 
@@ -147,12 +174,11 @@ public class JbInstantMessengerMessageReader {
 	}
 
 	/**
-	 * Lê as mensagens a partir do offset informado, sem alterar o offset salvo na entidade
-	 * {@link JbEntityBotUpdateId}.
-	 * @param botType bot a ser lido
-	 * @param offset identificador da primeira atualização a ser devolvida
-	 * @param timeout tempo em segundos do long polling (zero para consulta imediata)
-	 * @return lista de mensagens simplificadas
+	 * Reads the messages from the offset, without changing the saved offset.
+	 * @param botType the bot
+	 * @param offset the first update to return
+	 * @param timeout the long polling time, in seconds
+	 * @return the simplified messages
 	 */
 	public List<CcpJsonRepresentation> readMessages(String botType, Long offset, Integer timeout) {
 		CcpJsonRepresentation updates = this.getUpdates(botType, offset, timeout);
@@ -162,12 +188,9 @@ public class JbInstantMessengerMessageReader {
 	}
 
 	/**
-	 * Lê somente as mensagens do bot informado que ainda não foram lidas, partindo do offset salvo
-	 * na entidade {@link JbEntityBotUpdateId} e salvando o offset já incrementado, para que a
-	 * próxima chamada não devolva as mesmas mensagens.
-	 * @param botType bot a ser lido
-	 * @param timeout tempo em segundos do long polling (zero para consulta imediata)
-	 * @return lista de mensagens simplificadas
+	 * Reads the messages not read yet (from the saved offset), hands each one to the bot and saves the new offset.
+	 * @param timeout the long polling time, in seconds
+	 * @param messageReader the bot; its name is the bot type
 	 */
 	public void readNewMessages(Integer timeout, CcpBusiness messageReader) {
 		
@@ -189,6 +212,14 @@ public class JbInstantMessengerMessageReader {
 	}
 
 
+	/**
+	 * Simplifies the updates that carry a message.
+	 * @param botType the bot
+	 * @param updates the answer of Telegram
+	 * @param offsetToUpdate receives the offset after the last update (unused by the callers)
+	 * @return the simplified messages
+	 * @throws JbErrorUnableToReadInstantMessages when the answer is not {@code ok}
+	 */
 	private List<CcpJsonRepresentation> extractMessages(String botType, CcpJsonRepresentation updates, AtomicLong offsetToUpdate) {
 
 		Boolean ok = updates.getOrDefault(CcpJsonCommonsFields.ok, () -> false);
@@ -207,9 +238,9 @@ public class JbInstantMessengerMessageReader {
 		for (CcpJsonRepresentation update : result) {
 
 			Long updateId = update.getAsLongNumber(JsonFieldNames.update_id);
-			Long updateIdMais = updateId + 1;
+			Long nextUpdateId = updateId + 1;
 
-			offsetToUpdate.set(updateIdMais);
+			offsetToUpdate.set(nextUpdateId);
 			boolean containsAllFields = update.containsAllFields(JnJsonInstantMessengerFields.message);
 
 			boolean thereIsNoMessage = false == containsAllFields;
@@ -226,6 +257,13 @@ public class JbInstantMessengerMessageReader {
 		return messages;
 	}
 
+	/**
+	 * Simplifies an update: bot, chat id, message id, send time, update id, user name and text.
+	 * @param botType the bot
+	 * @param update the update
+	 * @param updateId the id of the update
+	 * @return the simplified message
+	 */
 	private CcpJsonRepresentation extractMessage(String botType, CcpJsonRepresentation update, Long updateId) {
 
 		Double chatId = update.getValueFromPath(0d, JnJsonInstantMessengerFields.message, JsonFieldNames.chat, JnJsonCommonsFields.id);
@@ -256,12 +294,18 @@ public class JbInstantMessengerMessageReader {
 		return message;
 	}
 
+	/**
+	 * Builds the HTTP handler of a resource of the bot, with the flows by status.
+	 * @param botType the bot
+	 * @param resource the resource, with its query string
+	 * @return the handler
+	 */
 	private CcpHttpHandler getHttpHandler(String botType, String resource) {
 
 		String botToken = this.getBotToken(botType);
 		String botUrl = JnSystemProperties.INSTANCE.urlInstantMessengerKey();
-		String botUrlMais = botUrl + botToken;
-		String url = botUrlMais + resource;
+		String botUrlWithToken = botUrl + botToken;
+		String url = botUrlWithToken + resource;
 		CcpErrorInstantMessageThisBotWasBlockedByThisUser ccpErrorInstantMessageThisBotWasBlockedByThisUser = new CcpErrorInstantMessageThisBotWasBlockedByThisUser(botType);
 		CcpFunctionThrowException ccpFunctionThrowException = new CcpFunctionThrowException(ccpErrorInstantMessageThisBotWasBlockedByThisUser);
 		CcpJsonRepresentation addJsonTransformer = CcpOtherConstants.EMPTY_JSON
@@ -289,28 +333,24 @@ public class JbInstantMessengerMessageReader {
 	}
 
 
-	/**
-	 * Exceção lançada quando o mensageiro responde 404 para o bot informado, ou seja, o bot não existe.
-	 */
+	/** Raised when the messenger answers 404 for the bot: the bot does not exist. */
 	@SuppressWarnings("serial")
 	public static class JbErrorInstantMessengerBotNotFound extends RuntimeException {
 		/**
-		 * Monta a mensagem informando qual bot não foi encontrado.
-		 * @param botType o tipo do bot procurado
+		 * Names the bot not found.
+		 * @param botType the bot
 		 */
 		private JbErrorInstantMessengerBotNotFound(String botType) {
 			super("The bot '" + botType + "' was not found");
 		}
 	}
 
-	/**
-	 * Exceção lançada quando o mensageiro responde 401 para o bot informado, ou seja, o bot existe mas está inativo.
-	 */
+	/** Raised when the messenger answers 401 for the bot: the bot exists but is inactive. */
 	@SuppressWarnings("serial")
 	public static class JbErrorInstantMessengerBotIsInactive extends RuntimeException {
 		/**
-		 * Monta a mensagem informando qual bot está inativo.
-		 * @param botType o tipo do bot inativo
+		 * Names the inactive bot.
+		 * @param botType the bot
 		 */
 		private JbErrorInstantMessengerBotIsInactive(String botType) {
 			super("The bot '" + botType + "' is inactive");

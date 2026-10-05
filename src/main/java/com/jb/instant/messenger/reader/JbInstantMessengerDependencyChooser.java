@@ -13,15 +13,13 @@ import com.ccp.local.testings.implementations.CcpLocalInstances;
 import com.ccp.local.testings.implementations.cache.CcpLocalCacheInstances;
 
 /**
- * Escolhe as implementações necessárias para que {@link JbInstantMessengerMessageReader} funcione:
- * json via Gson, http via Apache Mime, cache nulo, banco de dados via Elasticsearch (necessário para
- * gravar e recuperar o offset de cada bot) e mensageria instantânea via Telegram.
+ * Chooses the implementations {@link JbInstantMessengerMessageReader} needs: JSON through Gson, HTTP through Apache
+ * Mime, a mock cache, the database through Elasticsearch (to save and read the offset of each bot) and the instant
+ * messenger through Telegram.
  */
 public class JbInstantMessengerDependencyChooser {
 
-	/**
-	 * Registra no {@code CcpDependencyInjection} as implementações usadas pela leitura de mensagens.
-	 */
+	/** Registers in {@code CcpDependencyInjection} the implementations used to read the messages. */
 	public static void chooseDependencies() {
 		CcpGsonJsonHandler ccpGsonJsonHandler = new CcpGsonJsonHandler();
 		CcpElasticSerchDbBulk ccpElasticSerchDbBulk = new CcpElasticSerchDbBulk();

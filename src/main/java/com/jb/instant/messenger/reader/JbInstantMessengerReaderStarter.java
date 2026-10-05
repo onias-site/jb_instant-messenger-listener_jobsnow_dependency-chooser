@@ -7,78 +7,96 @@ import com.jn.business.messages.JnMessageType;
 import com.jn.business.messages.JnMessageType.JnBotType;
 
 /**
- * Executa o {@code getUpdates} do Telegram contra o bot informado e imprime as mensagens recebidas.
- * Serve para testar o bot manualmente: rode esta classe, mande uma mensagem para o bot no
- * Telegram e a mensagem aparece no console.
- *
- * <p>Argumentos (todos opcionais):</p>
+ * Reads the messages of a bot and hands them to it, to run the bot by hand: start this class, send a message to the bot
+ * in Telegram and the bot answers.
+ * <p>Arguments (all optional):</p>
  * <ol>
- * <li>timeout em segundos do long polling, ou seja, quanto tempo cada leitura espera por mensagens
- * novas antes de desistir. Padrão 10.</li>
- * <li>quantidade de leituras. Zero significa ler indefinidamente. Padrão 1.</li>
- * <li>nome do bot a ser lido, um dos itens de {@link JnBotType}. Padrão {@code support}.</li>
+ * <li>the long polling time in seconds, that is, how long each reading waits for new messages. Default 10.</li>
+ * <li>how many readings. Zero means reading forever. Default 0.</li>
+ * <li>the bot, an item of {@code JnBotType}. Default {@code support}.</li>
  * </ol>
  */
 public class JbInstantMessengerReaderStarter {
 
+	/** The default long polling time, in seconds. */
 	private static final int DEFAULT_TIMEOUT = 10;
 
+	/** The default number of readings: zero, reading forever. */
 	private static final int DEFAULT_READS = 0;
 
+	/** The default bot. */
 	private static final JnMessageType.JnBotType DEFAULT_BOT = JnMessageType.JnBotType.support;
 
+	/**
+	 * Reads the messages of the bot, 3 seconds apart.
+	 * @param args the long polling time, the number of readings and the bot
+	 */
 	public static void main(String[] args) {
 
 		JbInstantMessengerDependencyChooser.chooseDependencies();
 
 		Integer timeout = getArgument(args, 0, DEFAULT_TIMEOUT);
-		Integer leituras = getArgument(args, 1, DEFAULT_READS);
+		Integer reads = getArgument(args, 1, DEFAULT_READS);
 		JnBotType botType = getBotType(args, 2, DEFAULT_BOT);
 
-		boolean lerIndefinidamente = 0 == leituras;
+		boolean readForever = 0 == reads;
 		CcpTimeDecorator ctd = new CcpTimeDecorator();
 		String botTypeName = botType.name();
 
 		JbBotType valueOf = JbBotType.valueOf(botTypeName);
 		CcpBusiness bot = valueOf.getBot();
 
-		for (int volta = 1; lerIndefinidamente || volta <= leituras; volta++) {
+		for (int round = 1; readForever || round <= reads; round++) {
 			JbInstantMessengerMessageReader.INSTANCE.readNewMessages(timeout, bot);
 			ctd.sleep(3000);
 		}
 	}
 
-	private static JnBotType getBotType(String[] args, int posicao, JnBotType valorPadrao) {
+	/**
+	 * Reads the bot from the arguments.
+	 * @param args the arguments
+	 * @param position the position of the argument
+	 * @param defaultValue the value when the argument is absent or invalid
+	 * @return the bot
+	 */
+	private static JnBotType getBotType(String[] args, int position, JnBotType defaultValue) {
 
-		boolean argumentoAusente = posicao >= args.length;
+		boolean argumentIsMissing = position >= args.length;
 
-		if (argumentoAusente) {
-			return valorPadrao;
+		if (argumentIsMissing) {
+			return defaultValue;
 		}
 
 		try {
-			String argsTrim = args[posicao].trim();
+			String argsTrim = args[position].trim();
 			JnBotType botType = JnBotType.valueOf(argsTrim);
 			return botType;
 		} catch (IllegalArgumentException e) {
-			return valorPadrao;
+			return defaultValue;
 		}
 	}
 
-	private static Integer getArgument(String[] args, int posicao, int valorPadrao) {
+	/**
+	 * Reads a number from the arguments.
+	 * @param args the arguments
+	 * @param position the position of the argument
+	 * @param defaultValue the value when the argument is absent or invalid
+	 * @return the number
+	 */
+	private static Integer getArgument(String[] args, int position, int defaultValue) {
 
-		boolean argumentoAusente = posicao >= args.length;
+		boolean argumentIsMissing = position >= args.length;
 
-		if (argumentoAusente) {
-			return valorPadrao;
+		if (argumentIsMissing) {
+			return defaultValue;
 		}
 
 		try {
-			String argsTrim2 = args[posicao].trim();
-			Integer valor = Integer.valueOf(argsTrim2);
-			return valor;
+			String argsTrim2 = args[position].trim();
+			Integer value = Integer.valueOf(argsTrim2);
+			return value;
 		} catch (NumberFormatException e) {
-			return valorPadrao;
+			return defaultValue;
 		}
 	}
 

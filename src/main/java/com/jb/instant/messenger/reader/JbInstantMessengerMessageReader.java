@@ -2,7 +2,6 @@ package com.jb.instant.messenger.reader;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Stream;
 
 import com.ccp.business.CcpBusiness;
@@ -182,8 +181,7 @@ public class JbInstantMessengerMessageReader {
 	 */
 	public List<CcpJsonRepresentation> readMessages(String botType, Long offset, Integer timeout) {
 		CcpJsonRepresentation updates = this.getUpdates(botType, offset, timeout);
-		AtomicLong atomicLong = new AtomicLong(offset);
-		List<CcpJsonRepresentation> messages = this.extractMessages(botType, updates, atomicLong);
+		List<CcpJsonRepresentation> messages = this.extractMessages(botType, updates);
 		return messages;
 	}
 
@@ -200,15 +198,34 @@ public class JbInstantMessengerMessageReader {
 
 		CcpJsonRepresentation updates = this.getUpdates(botType, offset, timeout);
 
-		AtomicLong offsetToUpdate = new AtomicLong(offset);
-
-		List<CcpJsonRepresentation> messages = this.extractMessages(botType, updates, offsetToUpdate);
+		List<CcpJsonRepresentation> messages = this.extractMessages(botType, updates);
 		
 		for (CcpJsonRepresentation message : messages) {
 			messageReader.execute(message);
 		}
 
-		offset = this.saveOffset(botType, offset, messages);
+		List<CcpJsonRepresentation> allUpdateIds = this.getUpdateIds(updates);
+		offset = this.saveOffset(botType, offset, allUpdateIds);
+	}
+
+	/**
+	 * Returns the id of every update read, including those without {@code message} (edits, callbacks and so on). The offset
+	 * advances over all of them: until 2026-10-06 it advanced only over the updates with {@code message}, so a batch made
+	 * only of other updates was read again forever and, with 100 of them piled up, new messages were no longer read.
+	 * @param updates the answer of Telegram
+	 * @return one JSON with {@code updateId} per update
+	 */
+	private List<CcpJsonRepresentation> getUpdateIds(CcpJsonRepresentation updates) {
+		List<CcpJsonRepresentation> result = updates.getAsJsonList(CcpJsonCommonsFields.result);
+		List<CcpJsonRepresentation> updateIds = new ArrayList<>();
+
+		for (CcpJsonRepresentation update : result) {
+			Long updateId = update.getAsLongNumber(JsonFieldNames.update_id);
+			CcpJsonRepresentation jsonWithUpdateId = CcpOtherConstants.EMPTY_JSON.put(JbEntityBotUpdateId.Fields.updateId, updateId);
+			updateIds.add(jsonWithUpdateId);
+		}
+
+		return updateIds;
 	}
 
 
@@ -216,11 +233,10 @@ public class JbInstantMessengerMessageReader {
 	 * Simplifies the updates that carry a message.
 	 * @param botType the bot
 	 * @param updates the answer of Telegram
-	 * @param offsetToUpdate receives the offset after the last update (unused by the callers)
 	 * @return the simplified messages
 	 * @throws JbErrorUnableToReadInstantMessages when the answer is not {@code ok}
 	 */
-	private List<CcpJsonRepresentation> extractMessages(String botType, CcpJsonRepresentation updates, AtomicLong offsetToUpdate) {
+	private List<CcpJsonRepresentation> extractMessages(String botType, CcpJsonRepresentation updates) {
 
 		Boolean ok = updates.getOrDefault(CcpJsonCommonsFields.ok, () -> false);
 
@@ -238,9 +254,7 @@ public class JbInstantMessengerMessageReader {
 		for (CcpJsonRepresentation update : result) {
 
 			Long updateId = update.getAsLongNumber(JsonFieldNames.update_id);
-			Long nextUpdateId = updateId + 1;
 
-			offsetToUpdate.set(nextUpdateId);
 			boolean containsAllFields = update.containsAllFields(JnJsonInstantMessengerFields.message);
 
 			boolean thereIsNoMessage = false == containsAllFields;

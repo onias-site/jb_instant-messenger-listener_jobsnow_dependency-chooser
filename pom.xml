@@ -88,8 +88,18 @@
 				</configuration>
 				<executions>
 					<execution>
+						<id>default</id>
 						<goals>
 							<goal>compile</goal>
+						</goals>
+						<configuration>
+							<!-- weave always: Eclipse writes unwoven classes into target/classes, and the incremental check would package them -->
+							<forceAjcCompile>true</forceAjcCompile>
+						</configuration>
+					</execution>
+					<execution>
+						<id>test</id>
+						<goals>
 							<goal>test-compile</goal>
 						</goals>
 					</execution>

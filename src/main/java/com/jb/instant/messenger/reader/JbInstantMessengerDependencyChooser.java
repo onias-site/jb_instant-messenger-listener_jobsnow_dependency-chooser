@@ -21,18 +21,18 @@ public class JbInstantMessengerDependencyChooser {
 
 	/** Registers in {@code CcpDependencyInjection} the implementations used to read the messages. */
 	public static void chooseDependencies() {
-		CcpGsonJsonHandler ccpGsonJsonHandler = new CcpGsonJsonHandler();
-		CcpElasticSerchDbBulk ccpElasticSerchDbBulk = new CcpElasticSerchDbBulk();
-		CcpApacheMimeHttp ccpApacheMimeHttp = new CcpApacheMimeHttp();
-		CcpElasticSearchDbRequest ccpElasticSearchDbRequest = new CcpElasticSearchDbRequest();
-		CcpElasticSearchCrud ccpElasticSearchCrud = new CcpElasticSearchCrud();
-		CcpTelegramInstantMessenger ccpTelegramInstantMessenger = new CcpTelegramInstantMessenger();
+		CcpGsonJsonHandler ccpGsonJsonHandler = CcpGsonJsonHandler.INSTANCE;
+		CcpElasticSerchDbBulk ccpElasticSerchDbBulk = CcpElasticSerchDbBulk.INSTANCE;
+		CcpApacheMimeHttp ccpApacheMimeHttp = CcpApacheMimeHttp.INSTANCE;
+		CcpElasticSearchDbRequest ccpElasticSearchDbRequest = CcpElasticSearchDbRequest.INSTANCE;
+		CcpElasticSearchCrud ccpElasticSearchCrud = CcpElasticSearchCrud.INSTANCE;
+		CcpTelegramInstantMessenger ccpTelegramInstantMessenger = CcpTelegramInstantMessenger.INSTANCE;
 		// the queries (e.g. the orphan items of a skill hierarchy fix request, the purge of a versionable record's history) need it
-		CcpElasticSearchQueryExecutor ccpElasticSearchQueryExecutor = new CcpElasticSearchQueryExecutor();
+		CcpElasticSearchQueryExecutor ccpElasticSearchQueryExecutor = CcpElasticSearchQueryExecutor.INSTANCE;
 		CcpDependencyInjection.loadAllDependencies(
 				ccpGsonJsonHandler,
 				CcpLocalInstances.email,
-				new CcpMindrotPasswordHandler(),
+				CcpMindrotPasswordHandler.INSTANCE,
 				ccpElasticSerchDbBulk, 
 				ccpApacheMimeHttp,
 				CcpLocalInstances.syncMensageriaListener,
